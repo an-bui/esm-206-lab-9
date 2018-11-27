@@ -1,6 +1,7 @@
 ---
 title: "Lab 9 - Multiple Linear Regression"
-author: "ENTER YOUR NAME HERE"
+author: "An Bui"
+date: "28 November 2018"
 output:
   html_document: default
 ---
