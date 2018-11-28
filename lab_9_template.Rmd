@@ -49,6 +49,8 @@ homes_sub <- homes %>%
          City == "Atascadero" |
          City == "Arroyo Grande")
 
+## what do you expect these relationships to look like? (e.g. what is the relationship between housing price and square footage? would you expect a home in foreclosure to sell for more or less than a regular house?)
+
 ```
 
 ###3. Go exploring (visual) + think critically about variables
@@ -65,6 +67,8 @@ mean_by_city <- homes_sub %>%
   summarize(
     mean = mean(Price)
   )
+
+mean_by_city
 
 # b. Visualize prices by city
 by_city <- ggplot(homes_sub, aes(x = Price)) +
@@ -84,12 +88,17 @@ Or another question: Overall relationship between home square footage and price,
 
 # a. Relationship between square footage and price
 by_sqft <- ggplot(homes_sub, aes(x = SqFt, y = Price)) +
+  # pch is point style, depends on Status
   geom_point(aes(color = City, pch = Status), alpha = 0.5) +
   facet_wrap(~Status)
 
 by_sqft
 
 # Observations here: Does relationship appear ~ linear? Anything else we can pick out re: trends, outliers, etc.? What is the general trend? Any outliers? Is there reason enough for us to omit it?
+
+# does it make sense to describe the relationship between sqft and price to be linear? yes - nothing that makes me think that it would be non-linear
+# outlier in one regular Arroyo Grande house
+# remember: the more variables, the harder it is for the audience to understand
 
 ```
 
@@ -110,9 +119,12 @@ Use summary() to view the model output and statistics.
 
 # a. Saturated model: 
 
+# include all variables, but PricePerSqFt is going to bias the model because it is derived from the output variable you're trying to model (basically saying, look how related Price and PricePerSqFt are! surprise!!)
+homes_lm1 <- lm(Price ~ City + Bedrooms + Bathrooms + SqFt + PricePerSqFt + Status, data = homes_sub)
 
 # b. Model summary:
-
+summary(homes_lm1)
+# list of coefficients is the model equation, but this is a problem: If everything is held constant, if you increase the number of bedrooms by 1, the price of a house would decrease by $30 792. Since you know that this is impossible, the model probably doesn't work great.
 ```
 
 The next model: Exclude price per square foot, and bedrooms/bathrooms (since these are largely explained by square footage...)
