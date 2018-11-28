@@ -124,7 +124,9 @@ homes_lm1 <- lm(Price ~ City + Bedrooms + Bathrooms + SqFt + PricePerSqFt + Stat
 
 # b. Model summary:
 summary(homes_lm1)
-# list of coefficients is the model equation, but this is a problem: If everything is held constant, if you increase the number of bedrooms by 1, the price of a house would decrease by $30 792. Since you know that this is impossible, the model probably doesn't work great.
+# list of coefficients is the model equation, but this is a problem: If everything is held constant, if you increase the number of bedrooms by 1, the price of a house would decrease by $30 792. Since you know that this is impossible, the model probably doesn't work great. This, with other coefficients, show that the model is oversaturated and is probably biased by some colinearity.
+
+# you can group variables: Bedrooms and Bathrooms and SqFt all basically describe size, so you can use SqFt and take Bedrooms and Bathrooms out
 ```
 
 The next model: Exclude price per square foot, and bedrooms/bathrooms (since these are largely explained by square footage...)
@@ -132,9 +134,19 @@ The next model: Exclude price per square foot, and bedrooms/bathrooms (since the
 ```{r subset}
 
 # a. Updated model with variables City, SqFt, and Status:
+homes_lm2 <- lm(Price ~ City + SqFt + Status, data = homes_sub)
 
 # b. Model summary:
+summary(homes_lm2)
+# just looking at coefficients: for every 1 sqft increase in a house, I expect the price of a house to increase by $245 on average. If you buy a house in a regular sale, it will be $209 998 more than a house bought in foreclosure.
 
+# for short sale, p value indicates that the prices between Short Sale homes and Foreclosure homes are not significantly different.
+
+# Arroyo Grande doesn't show up because it's the reference level (R chooses the first alphabetically). So I expect a house in Atascadero to sell for $202 157 less than a house in Arroyo Grande.
+
+# some error is associated with this because you never get the exact model. 53% of variance in housing price is explained by this model (from adjusted R-squared). 
+
+# Multiple R-squared doesn't adjust for the fact that as you increase the number of predictor variables, your model will go up. Adjusted R-squared adjusts for this, so it's always going to be a little lower. Both should be close.
 ```
 
 Wait...but what if I wanted everything to be with respect to a Regular sale status? Then I need to change my factor levels. We've done this before, here we'll use a different function (fct_relevel) from *forcats* package in the tidyverse. 
@@ -142,21 +154,25 @@ Wait...but what if I wanted everything to be with respect to a Regular sale stat
 ```{r fct_relevel}
 
 # a. Set Status to class 'factor'
-
+homes_sub$Status <- factor(homes_sub$Status)
+# not actually overwriting anything, just saying "recognize this as a factor instead"
 
 # b. Check to ensure it's a factor now
-
+# Use class()
 
 # c. Check levels:
-
+# Use levels()
 
 # d. Reassign reference level of "Status" to "Regular":
+# use fct_relevel() in forcats
+# puts regular first, then everything else after is alphabetical
+# but you can do this in any order you want
+# the first level becomes the reference level
+homes_sub$Status <- fct_relevel(homes_sub$Status, "Regular")
 
-
-# e. Now run the regression again - same equation, but now the reference level is different (Status = Regular): 
-
-
-
+# e. Now run the regression again - same equation, but now the reference level is different (Status = Regular): homes_sb
+homes_lm3 <- lm(Price ~ City + SqFt + Status, data = homes_sub)
+summary(homes_lm3)
 ```
 
 Interpret the coefficients and statistical outcomes above. 
@@ -171,7 +187,9 @@ Then we can evaluate model diagnostics using the plot() function:
 ```{r diagnostics}
 
 # a. Model diagnostics:
-
+plot(homes_lm3)
+# Residuals vs Fitted: for all observations in dataset, no clear trend in terms of variance (spread is pretty even), looks heteroscedastic. 188 sold for less than what we would expect it to
+# normal Q-Q: residuals are normally distributed (with 3 outlier residuals)
 ```
 
 ###6. Model comparison by Akaike Information Criterion
@@ -181,9 +199,11 @@ The AIC is a quantitative metric for model "optimization" that balances complexi
 ```{r AIC}
 
 # a. AIC values for each model
+full_aic <- AIC(homes_lm1)
+final_aic <- AIC(homes_lm3)
 
 # Answer: which would you pick? 
-
+# If you were using AIC only, you would pick homes_lm1 (because AIC = 10699.25) over homes_lm3 (AIC = 11148). However, homes_lm1 includes a variable that is directly derived from output variable, so this model isn't justified based on your own conceptual understanding of the data.
 ```
 
 ###7. Regression tables with *stargazer*
@@ -191,7 +211,8 @@ The AIC is a quantitative metric for model "optimization" that balances complexi
 ```{r stargazer, results = 'asis'}
 
 # a. Prepare a nice regression table:
-
+stargazer(homes_lm1, homes_lm3, type = "html")
+# output is scary but shows up well in html
 
 
 # Note: If you want to work with this in Word, save to html, open, copy and paste into Word. 
@@ -243,11 +264,13 @@ Make predictions for the new data using predict():
 ```{r predict}
 
 # a. Make predictions using the new data frame:
+price_predict <- predict(homes_lm3, newdata = df_new, se.fit = TRUE, interval = "confidence")
+# then you get a vector of numeric values, but you need to bind to the data to make it useful
 
 # b. Bind predictions to the data to make it actually useful:
+predict_df <- data.frame(df_new, price_predict)
 
-
-
+# fit.fit is prediction for house price
 ```
 
 Then visualize it!
@@ -255,7 +278,13 @@ Then visualize it!
 ```{r graph, echo = FALSE}
 
 # Create a line graph with square footage on the x-axis, predicted price on y-axis, with color dependent on City and facet_wrapped by sale status (follow along):
-
+predict_graph <- ggplot(predict_df, aes(x = SqFt, y = fit.fit)) +
+  geom_line(aes(color = City)) +
+  geom_point(data = homes_sub, aes(x = SqFt, y = Price), 
+             alpha = 0.5) +
+  facet_wrap(~ Status)
+# you can add original data onto an existing ggplot graph as long as you call the dataset you want to plot from
+predict_graph
 
 ```
 
